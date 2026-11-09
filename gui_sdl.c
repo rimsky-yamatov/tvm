@@ -170,6 +170,14 @@ void gui_fcircle(int id, int cx, int cy, int r, int c)
     }
 }
 
+void gui_blit(int id, int x, int y, int w, int h, const uint8_t *d, int key)
+{
+    int i, j;
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            if (d[j * w + i] != key) gui_pixel(id, x + i, y + j, d[j * w + i]);
+}
+
 void gui_text(int id, int x, int y, const char *s, int c)
 {
     int x0 = x, col, row;

@@ -21,7 +21,7 @@ static void getstr(VM *v, u32 p, char *buf, int n)
 /* Arguments are pushed left to right, so the last argument is on top of the stack. */
 int tvm_sys(VM *v, int n)
 {
-    u32 a, b, c, d, e; char buf[256]; int w, t, x, y;
+    u32 a, b, c, d, e, f; char buf[256]; int w, t, x, y;
     switch (n) {
     case 0:  putchar((int)(vpop(v) & 255)); break;                       /* PUTC(c)            */
     case 1:  printf("%d", (int)vpop(v)); break;                          /* PUTI(n)            */
@@ -30,6 +30,12 @@ int tvm_sys(VM *v, int n)
     case 12: a = vpop(v); gui_close((int)a); if ((int)a == cur) cur = -1; break; /* WCLOSE(id)  */
     case 13: getstr(v, vpop(v), buf, sizeof buf); gui_title(cur, buf); break;    /* WTITLE(str) */
     case 14: b = vpop(v); a = vpop(v); vpush(v, (u32)gui_getpixel(cur, cl(a), cl(b))); break;   /* GETPIXEL(x,y) -> c or -1 */
+    case 15: f = vpop(v); e = vpop(v); d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);   /* BLIT(x,y,w,h,ptr,key) */
+             { static uint8_t px[65536]; int bw = cl(c), bh = cl(d), i, k = bw * bh;
+               if (bw <= 0 || bh <= 0 || k > 65536) break;
+               for (i = 0; i < k; i++) px[i] = v->mem[(uint16_t)(e + (u32)i)];
+               gui_blit(cur, cl(a), cl(b), bw, bh, px, (int)f); }
+             break;
     case 16: d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
              gui_circle(cur, cl(a), cl(b), cr(c), (int)(d & 255)); break;                       /* CIRCLE(x,y,r,c)  */
     case 17: d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);

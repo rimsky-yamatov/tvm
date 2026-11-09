@@ -15,6 +15,7 @@ void     gui_pal(int i, uint32_t rgb);
 int      gui_getpixel(int id, int x, int y);                /* -1 if outside */
 void     gui_recto(int id, int x, int y, int w, int h, int c);
 void     gui_circle(int id, int cx, int cy, int r, int c);
+void     gui_blit(int id, int x, int y, int w, int h, const uint8_t *d, int key);   /* key = transparent colour */
 void     gui_fcircle(int id, int cx, int cy, int r, int c);
 void     gui_flip(int id);
 int      gui_poll(int *win, int *type, int *a, int *b);   /* 1 if an event was returned */
