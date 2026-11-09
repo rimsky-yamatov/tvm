@@ -12,6 +12,10 @@ void     gui_rect(int id, int x, int y, int w, int h, int c);
 void     gui_line(int id, int x0, int y0, int x1, int y1, int c);
 void     gui_text(int id, int x, int y, const char *s, int c);
 void     gui_pal(int i, uint32_t rgb);
+int      gui_getpixel(int id, int x, int y);                /* -1 if outside */
+void     gui_recto(int id, int x, int y, int w, int h, int c);
+void     gui_circle(int id, int cx, int cy, int r, int c);
+void     gui_fcircle(int id, int cx, int cy, int r, int c);
 void     gui_flip(int id);
 int      gui_poll(int *win, int *type, int *a, int *b);   /* 1 if an event was returned */
 uint32_t gui_ticks(void);

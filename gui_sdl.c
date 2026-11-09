@@ -130,6 +130,46 @@ void gui_line(int id, int x0, int y0, int x1, int y1, int c)
     }
 }
 
+int gui_getpixel(int id, int x, int y)
+{
+    Win *o = G(id);
+    return (o && x >= 0 && y >= 0 && x < o->w && y < o->h) ? o->fb[y * o->w + x] : -1;
+}
+
+void gui_recto(int id, int x, int y, int w, int h, int c)
+{
+    if (w <= 0 || h <= 0) return;
+    gui_rect(id, x, y, w, 1, c);
+    gui_rect(id, x, y + h - 1, w, 1, c);
+    gui_rect(id, x, y, 1, h, c);
+    gui_rect(id, x + w - 1, y, 1, h, c);
+}
+
+void gui_circle(int id, int cx, int cy, int r, int c)
+{
+    int x = r, y = 0, e = 1 - r;
+    if (r < 0) return;
+    while (x >= y) {
+        gui_pixel(id, cx + x, cy + y, c); gui_pixel(id, cx - x, cy + y, c);
+        gui_pixel(id, cx + x, cy - y, c); gui_pixel(id, cx - x, cy - y, c);
+        gui_pixel(id, cx + y, cy + x, c); gui_pixel(id, cx - y, cy + x, c);
+        gui_pixel(id, cx + y, cy - x, c); gui_pixel(id, cx - y, cy - x, c);
+        y++;
+        if (e < 0) e += 2 * y + 1; else { x--; e += 2 * (y - x) + 1; }
+    }
+}
+
+void gui_fcircle(int id, int cx, int cy, int r, int c)
+{
+    int dy, dx;
+    if (r < 0) return;
+    if (r > 2048) r = 2048;
+    for (dy = -r; dy <= r; dy++) {
+        for (dx = 0; dx * dx + dy * dy <= r * r; dx++) ;
+        gui_rect(id, cx - (dx - 1), cy + dy, 2 * dx - 1, 1, c);
+    }
+}
+
 void gui_text(int id, int x, int y, const char *s, int c)
 {
     int x0 = x, col, row;

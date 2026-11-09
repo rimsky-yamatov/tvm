@@ -9,6 +9,7 @@ static int cur = -1;                    /* currently selected window */
 static u32 rng = 2463534242u;
 
 static int cl(u32 x) { i32 n = (i32)x; return n < -32768 ? -32768 : n > 32767 ? 32767 : n; }
+static int cr(u32 x) { i32 n = (i32)x; return n < 0 ? -1 : n > 2048 ? 2048 : n; }   /* radius */
 
 static void getstr(VM *v, u32 p, char *buf, int n)
 {
@@ -28,6 +29,13 @@ int tvm_sys(VM *v, int n)
     case 11: cur = (int)vpop(v); break;                                  /* WSEL(id)           */
     case 12: a = vpop(v); gui_close((int)a); if ((int)a == cur) cur = -1; break; /* WCLOSE(id)  */
     case 13: getstr(v, vpop(v), buf, sizeof buf); gui_title(cur, buf); break;    /* WTITLE(str) */
+    case 14: b = vpop(v); a = vpop(v); vpush(v, (u32)gui_getpixel(cur, cl(a), cl(b))); break;   /* GETPIXEL(x,y) -> c or -1 */
+    case 16: d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
+             gui_circle(cur, cl(a), cl(b), cr(c), (int)(d & 255)); break;                       /* CIRCLE(x,y,r,c)  */
+    case 17: d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
+             gui_fcircle(cur, cl(a), cl(b), cr(c), (int)(d & 255)); break;                      /* FCIRCLE(x,y,r,c) */
+    case 18: e = vpop(v); d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
+             gui_recto(cur, cl(a), cl(b), cl(c), cl(d), (int)(e & 255)); break;                 /* RECTO(x,y,w,h,c) */
     case 20: c = vpop(v); b = vpop(v); a = vpop(v); gui_pixel(cur, cl(a), cl(b), (int)(c & 255)); break;
     case 21: e = vpop(v); d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
              gui_rect(cur, cl(a), cl(b), cl(c), cl(d), (int)(e & 255)); break;       /* RECT(x,y,w,h,c) */
