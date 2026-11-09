@@ -1,12 +1,22 @@
 /* main.c - host: loads a binary, runs it, implements SYS calls (console + GUI). */
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "tvm.h"
 #include "gui.h"
 
 static VM vm;
 static int cur = -1;                    /* currently selected window */
 static u32 rng = 2463534242u;
+#define PI 3.14159265358979323846
+
+static u32 isqrt(u32 n)
+{
+    u32 r = 0, bit = 1u << 30;
+    while (bit > n) bit >>= 2;
+    while (bit) { if (n >= r + bit) { n -= r + bit; r = (r >> 1) + bit; } else r >>= 1; bit >>= 2; }
+    return r;
+}
 
 static int cl(u32 x) { i32 n = (i32)x; return n < -32768 ? -32768 : n > 32767 ? 32767 : n; }
 static int cr(u32 x) { i32 n = (i32)x; return n < 0 ? -1 : n > 2048 ? 2048 : n; }   /* radius */
@@ -61,6 +71,9 @@ int tvm_sys(VM *v, int n)
     case 32: gui_sleep((int)vpop(v)); break;                             /* SLEEP(ms)          */
     case 33: a = vpop(v); rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
              vpush(v, a ? rng % a : 0); break;                           /* RND(n) -> 0..n-1   */
+    case 40: a = vpop(v); vpush(v, (u32)(i32)lround(sin((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* SIN(deg) -> 16.16 */
+    case 41: a = vpop(v); vpush(v, (u32)(i32)lround(cos((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* COS(deg) -> 16.16 */
+    case 42: a = vpop(v); vpush(v, (i32)a < 0 ? 0 : isqrt(a)); break;                                     /* SQRT(n)           */
     case 99: return 1;                                                   /* EXIT               */
     }
     return 0;

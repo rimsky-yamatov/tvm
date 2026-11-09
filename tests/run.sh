@@ -17,7 +17,7 @@ for n in hello fib fact primes; do
 done
 
 # portable switch dispatch (no computed goto)
-cc -O2 -DTVM_NO_GOTO $(sdl2-config --cflags) -o "$T/tvm_sw" main.c vm.c gui_sdl.c $(sdl2-config --libs)
+cc -O2 -DTVM_NO_GOTO $(sdl2-config --cflags) -o "$T/tvm_sw" main.c vm.c gui_sdl.c $(sdl2-config --libs) -lm
 if "$T/tvm_sw" "$T/fib.bin" | cmp -s - tests/expected/fib.txt; then echo "ok   fib (switch dispatch)"; else echo "FAIL switch dispatch"; fail=1; fi
 
 # GUI: replay scripted events with the dummy video driver
@@ -26,7 +26,7 @@ cc $F -c -Dgui_poll=real_poll gui_sdl.c -o "$T/g.o"
 cc $F -c main.c -o "$T/m.o"
 cc $F -c vm.c -o "$T/v.o"
 cc $F -c tests/gui_events.c -o "$T/e.o"
-cc -o "$T/tvm_events" "$T/m.o" "$T/v.o" "$T/g.o" "$T/e.o" $(sdl2-config --libs)
+cc -o "$T/tvm_events" "$T/m.o" "$T/v.o" "$T/g.o" "$T/e.o" $(sdl2-config --libs) -lm
 SDL_VIDEODRIVER=dummy TVM_DUMP="$T/w" "$T/tvm_events" "$T/win2.bin"
 sum=$(cat "$T/w0.ppm" "$T/w1.ppm" | md5sum | cut -d' ' -f1)
 if [ "$sum" = "$(cat tests/expected/win2.md5)" ]; then echo "ok   win2 (scripted events)"; else echo "FAIL win2"; fail=1; fi
