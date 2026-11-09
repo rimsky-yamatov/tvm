@@ -1,6 +1,8 @@
 CC     ?= cc
 CFLAGS ?= -O2 -Wall -Wextra
 
+.PHONY: all clean test
+
 all: tvm tasm
 
 tvm: main.c vm.c gui_sdl.c tvm.h gui.h
@@ -8,6 +10,9 @@ tvm: main.c vm.c gui_sdl.c tvm.h gui.h
 
 tasm: tasm.c tvm.h
 	$(CC) $(CFLAGS) -o $@ tasm.c
+
+test:
+	sh tests/run.sh
 
 clean:
 	rm -f tvm tasm *.bin
