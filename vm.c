@@ -78,6 +78,9 @@ int tvm_run(VM *v)
     CASE(GT)     BIN((i32)a >  (i32)b); NEXT();
     CASE(LE)     BIN((i32)a <= (i32)b); NEXT();
     CASE(GE)     BIN((i32)a >= (i32)b); NEXT();
+    CASE(FMUL)   BIN((u32)(((int64_t)(i32)a * (i32)b) >> 16)); NEXT();          /* 16.16 fixed point */
+    CASE(FDIV)   BIN(b ? (u32)(((int64_t)(i32)a * 65536) / (i32)b) : 0); NEXT();
+    CASE(ABS)    TOP = (i32)TOP < 0 ? 0u - TOP : TOP; NEXT();
 
     CASE(JMP)    RDV(r); pc = A16(pc + r); NEXT();
     CASE(JZ)     RDV(r); if (!POP()) pc = A16(pc + r); NEXT();
