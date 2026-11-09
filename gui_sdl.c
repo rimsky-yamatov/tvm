@@ -251,6 +251,29 @@ int gui_poll(int *win, int *type, int *a, int *b)
     return 0;
 }
 
+void gui_mouse(int *win, int *x, int *y, int *btn)
+{
+    SDL_Window *f; Uint32 s;
+    *win = -1; *x = *y = *btn = 0;
+    if (!ready) return;
+    SDL_PumpEvents();
+    f = SDL_GetMouseFocus();
+    if (f) *win = wid(SDL_GetWindowID(f));
+    s = SDL_GetMouseState(x, y);
+    *x /= scale; *y /= scale; *btn = (int)(s & 7);
+}
+
+int gui_key(int code)
+{
+    const Uint8 *k; SDL_Scancode sc;
+    if (!ready) return 0;
+    SDL_PumpEvents();
+    sc = code < 128 ? SDL_GetScancodeFromKey((SDL_Keycode)code) : (SDL_Scancode)(code - 128);
+    if ((int)sc <= 0 || (int)sc >= SDL_NUM_SCANCODES) return 0;
+    k = SDL_GetKeyboardState(NULL);
+    return k[sc];
+}
+
 uint32_t gui_ticks(void) { return ready ? SDL_GetTicks() : 0; }
 void gui_sleep(int ms) { if (ms > 0) { if (ready) SDL_Delay((Uint32)ms); } }
 

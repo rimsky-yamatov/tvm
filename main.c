@@ -54,6 +54,9 @@ int tvm_sys(VM *v, int n)
     case 26: gui_flip(cur); break;                                       /* FLIP               */
     case 30: gui_poll(&w, &t, &x, &y);                                   /* POLL -> win,type,a,b */
              vpush(v, (u32)w); vpush(v, (u32)t); vpush(v, (u32)x); vpush(v, (u32)y); break;
+    case 34: gui_mouse(&w, &x, &y, &t);                                  /* MOUSE -> win,x,y,buttons */
+             vpush(v, (u32)w); vpush(v, (u32)x); vpush(v, (u32)y); vpush(v, (u32)t); break;
+    case 35: a = vpop(v); vpush(v, (u32)gui_key((int)a)); break;         /* KEY(code) -> 0/1   */
     case 31: vpush(v, gui_ticks()); break;                               /* TICK -> ms         */
     case 32: gui_sleep((int)vpop(v)); break;                             /* SLEEP(ms)          */
     case 33: a = vpop(v); rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;

@@ -19,6 +19,8 @@ void     gui_blit(int id, int x, int y, int w, int h, const uint8_t *d, int key)
 void     gui_fcircle(int id, int cx, int cy, int r, int c);
 void     gui_flip(int id);
 int      gui_poll(int *win, int *type, int *a, int *b);   /* 1 if an event was returned */
+void     gui_mouse(int *win, int *x, int *y, int *btn);   /* current state; btn bit0 left, bit1 middle, bit2 right */
+int      gui_key(int code);                               /* 1 while held; same codes as key events */
 uint32_t gui_ticks(void);
 void     gui_sleep(int ms);
 void     gui_quit(void);
