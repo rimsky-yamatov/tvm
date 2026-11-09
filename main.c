@@ -1,0 +1,64 @@
+/* main.c - host: loads a binary, runs it, implements SYS calls (console + GUI). */
+#include <stdio.h>
+#include <stdlib.h>
+#include "tvm.h"
+#include "gui.h"
+
+static VM vm;
+static int cur = -1;                    /* currently selected window */
+static u32 rng = 2463534242u;
+
+static int cl(u32 x) { i32 n = (i32)x; return n < -32768 ? -32768 : n > 32767 ? 32767 : n; }
+
+static void getstr(VM *v, u32 p, char *buf, int n)
+{
+    int i;
+    for (i = 0; i < n - 1; i++) { char ch = (char)v->mem[(uint16_t)(p + i)]; if (!ch) break; buf[i] = ch; }
+    buf[i] = 0;
+}
+
+/* Arguments are pushed left to right, so the last argument is on top of the stack. */
+int tvm_sys(VM *v, int n)
+{
+    u32 a, b, c, d, e; char buf[256]; int w, t, x, y;
+    switch (n) {
+    case 0:  putchar((int)(vpop(v) & 255)); break;                       /* PUTC(c)            */
+    case 1:  printf("%d", (int)vpop(v)); break;                          /* PUTI(n)            */
+    case 10: b = vpop(v); a = vpop(v); cur = gui_open(cl(a), cl(b)); vpush(v, (u32)cur); break; /* WIN(w,h)->id */
+    case 11: cur = (int)vpop(v); break;                                  /* WSEL(id)           */
+    case 12: a = vpop(v); gui_close((int)a); if ((int)a == cur) cur = -1; break; /* WCLOSE(id)  */
+    case 13: getstr(v, vpop(v), buf, sizeof buf); gui_title(cur, buf); break;    /* WTITLE(str) */
+    case 20: c = vpop(v); b = vpop(v); a = vpop(v); gui_pixel(cur, cl(a), cl(b), (int)(c & 255)); break;
+    case 21: e = vpop(v); d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
+             gui_rect(cur, cl(a), cl(b), cl(c), cl(d), (int)(e & 255)); break;       /* RECT(x,y,w,h,c) */
+    case 22: e = vpop(v); d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v);
+             gui_line(cur, cl(a), cl(b), cl(c), cl(d), (int)(e & 255)); break;       /* LINE(x0,y0,x1,y1,c) */
+    case 23: d = vpop(v); c = vpop(v); b = vpop(v); a = vpop(v); getstr(v, c, buf, sizeof buf);
+             gui_text(cur, cl(a), cl(b), buf, (int)(d & 255)); break;                /* TEXT(x,y,str,c) */
+    case 24: gui_clear(cur, (int)(vpop(v) & 255)); break;                /* CLEAR(c)           */
+    case 25: b = vpop(v); a = vpop(v); gui_pal((int)(a & 255), b); break;/* PAL(i,rgb)         */
+    case 26: gui_flip(cur); break;                                       /* FLIP               */
+    case 30: gui_poll(&w, &t, &x, &y);                                   /* POLL -> win,type,a,b */
+             vpush(v, (u32)w); vpush(v, (u32)t); vpush(v, (u32)x); vpush(v, (u32)y); break;
+    case 31: vpush(v, gui_ticks()); break;                               /* TICK -> ms         */
+    case 32: gui_sleep((int)vpop(v)); break;                             /* SLEEP(ms)          */
+    case 33: a = vpop(v); rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
+             vpush(v, a ? rng % a : 0); break;                           /* RND(n) -> 0..n-1   */
+    case 99: return 1;                                                   /* EXIT               */
+    }
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    FILE *f; size_t n; int rc;
+    if (argc < 2) { fprintf(stderr, "usage: tvm prog.bin   (env TVM_SCALE=n for window zoom)\n"); return 2; }
+    if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
+    n = fread(vm.mem, 1, MEMSZ, f);
+    fclose(f);
+    if (!n) { fprintf(stderr, "tvm: empty program\n"); return 1; }
+    rc = tvm_run(&vm);
+    if (rc) fprintf(stderr, "tvm: stopped (invalid opcode or exit)\n");
+    gui_quit();
+    return rc;
+}
