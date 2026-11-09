@@ -3,7 +3,7 @@
  * syntax:  label:  MNEMONIC operand   ; comment
  *   PUSH x            picks PUSH0 / PUSH1 / PUSHI8 / PUSHV automatically
  *   .equ NAME value   .byte a,b,..   .word a,..(32-bit LE)   .space n   .str "text\n" (NUL-terminated)
- *   operands: 123  0x1F  'A'  label  label+4  NAME
+ *   operands: 123  0x1F  'A'  label  NAME  and expressions: ( ) * / + - << >> & |
  * Variable-length encodings are resolved by repeated passes; sizes only grow, so it always converges.
  */
 #include <stdio.h>
@@ -54,6 +54,8 @@ static void deflab(const char *n, long v)
 
 static int esc(int c) { switch (c) { case 'n': return 10; case 't': return 9; case 'r': return 13; case '0': return 0; default: return c; } }
 
+static long expr(const char **p);
+
 static long term(const char **p)
 {
     const char *s = *p; long v = 0; int neg = 0;
@@ -71,21 +73,59 @@ static long term(const char **p)
         while ((isalnum((unsigned char)*s) || *s == '_' || *s == '.') && i < 39) n[i++] = *s++;
         n[i] = 0;
         v = sym(n)->v;                  /* unresolved symbols read as 0 until a later pass */
+    } else if (*s == '(') {
+        s++; v = expr(&s);
+        while (isspace((unsigned char)*s)) s++;
+        if (*s != ')') die("missing )", 0);
+        s++;
     } else die("bad operand", *p);
     *p = s;
     return neg ? -v : v;
 }
 
-static long expr(const char **p)
+static int peek(const char **p, const char *op)   /* consume op if it is next */
 {
-    long v = term(p);
+    size_t n = strlen(op);
+    while (isspace((unsigned char)**p)) (*p)++;
+    if (strncmp(*p, op, n)) return 0;
+    *p += n;
+    return 1;
+}
+
+static long prod(const char **p)
+{
+    long v = term(p), r;
     for (;;) {
-        while (isspace((unsigned char)**p)) (*p)++;
-        if (**p == '+') { (*p)++; v += term(p); }
-        else if (**p == '-') { (*p)++; v -= term(p); }
+        if (peek(p, "*")) v *= term(p);
+        else if (peek(p, "/")) { r = term(p); if (!r) die("division by zero", 0); v /= r; }
         else return v;
     }
 }
+
+static long sum(const char **p)
+{
+    long v = prod(p);
+    for (;;) {
+        if (peek(p, "+")) v += prod(p);
+        else if (peek(p, "-")) v -= prod(p);
+        else return v;
+    }
+}
+
+static long shift(const char **p)
+{
+    long v = sum(p);
+    for (;;) {
+        if (peek(p, "<<")) v <<= (sum(p) & 63);
+        else if (peek(p, ">>")) v >>= (sum(p) & 63);
+        else return v;
+    }
+}
+
+static long band(const char **p) { long v = shift(p); while (peek(p, "&")) v &= shift(p); return v; }
+
+/* precedence (high to low): ( ) * / + - << >> & | */
+static long expr(const char **p) { long v = band(p); while (peek(p, "|")) v |= band(p); return v; }
 
 static void eol(const char *s)
 {
