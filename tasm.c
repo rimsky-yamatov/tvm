@@ -2,7 +2,8 @@
  *
  * syntax:  label:  MNEMONIC operand   ; comment
  *   PUSH x            picks PUSH0 / PUSH1 / PUSHI8 / PUSHV automatically
- *   .equ NAME value   .byte a,b,..   .word a,..(32-bit LE)   .space n   .str "text\n" (NUL-terminated)
+ *   .equ NAME value   .byte a,b,..   .word a,..(32-bit LE)   .space n   .fill n,v   .org addr
+ *   .str "text\n" (NUL-terminated)
  *   operands: 123  0x1F  'A'  label  NAME  and expressions: ( ) * / + - << >> & |
  * Variable-length encodings are resolved by repeated passes; sizes only grow, so it always converges.
  */
@@ -229,6 +230,19 @@ static void line(char *s)
                 if (*s == ',') { s++; continue; }
                 break;
             }
+            eol(s);
+        } else if (!strcmp(m, ".org")) {
+            long n = expr((const char **)&s);
+            if (n < pc) die(".org moves backwards", 0);
+            if (n > 65536) die(".org out of range", 0);
+            while (pc < n) eb(0);
+            eol(s);
+        } else if (!strcmp(m, ".fill")) {
+            long n = expr((const char **)&s), v = 0;
+            while (isspace((unsigned char)*s)) s++;
+            if (*s == ',') { s++; v = expr((const char **)&s); }
+            if (n > 65536) die(".fill too large", 0);
+            while (n-- > 0) eb((int)(v & 255));
             eol(s);
         } else if (!strcmp(m, ".space")) {
             long n = expr((const char **)&s);
