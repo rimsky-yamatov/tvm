@@ -6,6 +6,7 @@
 #include "gui.h"
 
 static VM vm;
+static int exited, exit_code;
 static int cur = -1;                    /* currently selected window */
 static u32 rng = 2463534242u;
 #define PI 3.14159265358979323846
@@ -35,6 +36,7 @@ int tvm_sys(VM *v, int n)
     switch (n) {
     case 0:  putchar((int)(vpop(v) & 255)); break;                       /* PUTC(c)            */
     case 1:  printf("%d", (int)vpop(v)); break;                          /* PUTI(n)            */
+    case 2:  fflush(stdout); vpush(v, (u32)getchar()); break;           /* GETC -> byte or -1 at EOF */
     case 10: b = vpop(v); a = vpop(v); cur = gui_open(cl(a), cl(b)); vpush(v, (u32)cur); break; /* WIN(w,h)->id */
     case 11: cur = (int)vpop(v); break;                                  /* WSEL(id)           */
     case 12: a = vpop(v); gui_close((int)a); if ((int)a == cur) cur = -1; break; /* WCLOSE(id)  */
@@ -74,7 +76,7 @@ int tvm_sys(VM *v, int n)
     case 40: a = vpop(v); vpush(v, (u32)(i32)lround(sin((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* SIN(deg) -> 16.16 */
     case 41: a = vpop(v); vpush(v, (u32)(i32)lround(cos((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* COS(deg) -> 16.16 */
     case 42: a = vpop(v); vpush(v, (i32)a < 0 ? 0 : isqrt(a)); break;                                     /* SQRT(n)           */
-    case 99: return 1;                                                   /* EXIT               */
+    case 99: exit_code = (int)vpop(v); exited = 1; return 1;                                                   /* EXIT               */
     }
     return 0;
 }
@@ -88,7 +90,7 @@ int main(int argc, char **argv)
     fclose(f);
     if (!n) { fprintf(stderr, "tvm: empty program\n"); return 1; }
     rc = tvm_run(&vm);
-    if (rc) fprintf(stderr, "tvm: stopped (invalid opcode or exit)\n");
+    if (rc && !exited) fprintf(stderr, "tvm: invalid opcode\n");
     gui_quit();
-    return rc;
+    return exited ? exit_code : rc;
 }
