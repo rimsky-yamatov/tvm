@@ -23,5 +23,6 @@ void     gui_mouse(int *win, int *x, int *y, int *btn);   /* current state; btn 
 int      gui_key(int code);                               /* 1 while held; same codes as key events */
 uint32_t gui_ticks(void);
 void     gui_sleep(int ms);
+void     gui_beep(int freq, int ms);                       /* square wave, returns immediately */
 void     gui_quit(void);
 #endif

@@ -76,6 +76,7 @@ int tvm_sys(VM *v, int n)
     case 40: a = vpop(v); vpush(v, (u32)(i32)lround(sin((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* SIN(deg) -> 16.16 */
     case 41: a = vpop(v); vpush(v, (u32)(i32)lround(cos((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* COS(deg) -> 16.16 */
     case 42: a = vpop(v); vpush(v, (i32)a < 0 ? 0 : isqrt(a)); break;                                     /* SQRT(n)           */
+    case 50: b = vpop(v); a = vpop(v); gui_beep((int)a, (int)b); break;      /* BEEP(freq,ms)     */
     case 99: exit_code = (int)vpop(v); exited = 1; return 1;                                                   /* EXIT               */
     }
     return 0;

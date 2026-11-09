@@ -274,12 +274,47 @@ int gui_key(int code)
     return k[sc];
 }
 
-uint32_t gui_ticks(void) { return ready ? SDL_GetTicks() : 0; }
-void gui_sleep(int ms) { if (ms > 0) { if (ready) SDL_Delay((Uint32)ms); } }
+static SDL_AudioDeviceID adev;
+static uint32_t aph, ainc;
+static volatile int aleft;
+#define ARATE 22050
+
+static void acb(void *u, Uint8 *s, int n)
+{
+    int16_t *o = (int16_t *)s; int i;
+    (void)u;
+    for (i = 0; i < n / 2; i++) {
+        if (aleft > 0) { aph += ainc; o[i] = (aph & 0x80000000u) ? 3000 : -3000; aleft--; }
+        else o[i] = 0;
+    }
+}
+
+void gui_beep(int freq, int ms)
+{
+    SDL_AudioSpec w, h;
+    if (freq < 20 || freq > 10000 || ms <= 0) return;
+    if (ms > 10000) ms = 10000;
+    if (!adev) {
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) return;
+        SDL_zero(w);
+        w.freq = ARATE; w.format = AUDIO_S16SYS; w.channels = 1; w.samples = 512; w.callback = acb;
+        adev = SDL_OpenAudioDevice(NULL, 0, &w, &h, 0);
+        if (!adev) return;
+        SDL_PauseAudioDevice(adev, 0);
+    }
+    SDL_LockAudioDevice(adev);
+    ainc = (uint32_t)(((uint64_t)freq << 32) / ARATE);
+    aleft = ARATE / 1000 * ms;
+    SDL_UnlockAudioDevice(adev);
+}
+
+uint32_t gui_ticks(void) { return SDL_GetTicks(); }
+void gui_sleep(int ms) { if (ms > 0) SDL_Delay((Uint32)ms); }
 
 void gui_quit(void)
 {
     int i;
+    if (adev) { SDL_CloseAudioDevice(adev); adev = 0; }
     if (!ready) return;
     for (i = 0; i < GUI_MAXWIN; i++) gui_close(i);
     SDL_Quit();
