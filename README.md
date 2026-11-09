@@ -15,6 +15,23 @@ make                      # 要 SDL2 (libsdl2-dev)。tvm と tasm ができる
 | `gui.h` / `gui_sdl.c` | GUIバックエンド境界 / SDL2実装(最大8ウィンドウ) |
 | `tasm.c` | アセンブラ(可変長エンコードを反復パスで解決) |
 
+## サンプル(`examples/`)
+| ファイル | 内容 | 使っている機能 |
+|---|---|---|
+| `hello.asm` | Hello, World! | `CALL` / `LDL` / `LD8` / `.str` |
+| `fib.asm` | フィボナッチ数列20個 | ローカル変数、`PUTI` |
+| `fact.asm` | 再帰階乗 1!〜10! | `CALL` / `RETV` |
+| `primes.asm` | 100未満の素数(エラトステネスの篩) | `MEMSET` / `LD8` / `ST8` |
+| `lines.asm` | 256色パレットの放射線 | `LINE` |
+| `bounce.asm` | 跳ね返る四角(アニメーション) | `FLIP` / `SLEEP` / イベントループ |
+| `paint.asm` | マウスで描くお絵かき(1-9で色、cで消去) | マウス/キーイベント、`RECT` |
+| `counter.asm` | 経過秒とフレーム数を2ウィンドウで表示 | 複数ウィンドウ、アセンブリ内itoa |
+| `win2.asm` | 2ウィンドウでマウス追従 | `WSEL` / `POLL` |
+
+## テスト
+`make test`(または `sh tests/run.sh`)で、全サンプルのアセンブル、コンソール出力の比較、switchディスパッチ版の確認、
+擬似イベント(`tests/gui_events.c`)によるヘッドレスGUIテスト(`SDL_VIDEODRIVER=dummy`)を実行します。
+
 ## 実行モデル
 - 値は32bit。データスタック1024、メモリ64KB(コードとデータ共有、アドレスは16bitで折り返し)。範囲外アクセスでクラッシュしない
 - 0除算は0、`INT_MIN/-1` も安全
