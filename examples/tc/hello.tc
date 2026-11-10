@@ -1,0 +1,2 @@
+// hello.tc - the smallest program
+void main() { puts("Hello, World!"); }
