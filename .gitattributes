@@ -1,0 +1,2 @@
+# keep LF on every OS (Windows checkouts would otherwise turn files into CRLF)
+* text=auto eol=lf

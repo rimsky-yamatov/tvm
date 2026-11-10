@@ -10,6 +10,13 @@ SDLC=$(sdl2-config --cflags | sed 's/-Dmain=SDL_main//')
 case "$(uname -s)" in MINGW*|MSYS*) SDLL="-lSDL2" ;; *) SDLL=$(sdl2-config --libs) ;; esac
 TO=$(command -v timeout || command -v gtimeout || true)
 hash() { if command -v md5sum >/dev/null 2>&1; then md5sum; else md5 -r; fi | cut -d' ' -f1; }
+# compare two files ignoring CR (a Windows checkout may turn LF into CRLF); print the first differences on failure
+same() {
+    tr -d '\r' < "$1" > "$T/.cmp_a"; tr -d '\r' < "$2" > "$T/.cmp_b"
+    if cmp -s "$T/.cmp_a" "$T/.cmp_b"; then return 0; fi
+    echo "--- differences: $1 vs $2" >&2; diff "$T/.cmp_a" "$T/.cmp_b" 2>&1 | head -6 >&2
+    return 1
+}
 
 for f in examples/*.tas; do
     n=$(basename "$f" .tas)
@@ -18,26 +25,31 @@ done
 
 for n in hello fib fact primes fixed; do
     ./tvm "$T/$n.tvb" > "$T/$n.out"
-    if cmp -s "$T/$n.out" "tests/expected/$n.txt"; then echo "ok   $n"; else echo "FAIL $n"; fail=1; fi
+    if same "$T/$n.out" "tests/expected/$n.txt"; then echo "ok   $n"; else echo "FAIL $n"; fail=1; fi
 done
 
 # stdin, EXIT(code)
 rc=0; printf 'hello\nworld\n' | ./tvm "$T/echo.tvb" > "$T/echo.out" || rc=$?
-if [ $rc -eq 2 ] && cmp -s "$T/echo.out" tests/expected/echo.txt; then echo "ok   echo (stdin, exit code)"; else echo "FAIL echo (exit $rc)"; fail=1; fi
+if [ $rc -eq 2 ] && same "$T/echo.out" tests/expected/echo.txt; then echo "ok   echo (stdin, exit code)"; else echo "FAIL echo (exit $rc)"; fail=1; fi
 
 # sandboxed file I/O: works with -fs DIR, ".." is refused, everything fails without -fs
 ./tvm -fs "$T" "$T/files.tvb" > "$T/files.out"
-if cmp -s "$T/files.out" tests/expected/files.txt && [ ! -e "$T/out.txt" ]; then echo "ok   files (-fs sandbox)"; else echo "FAIL files"; fail=1; fi
+if same "$T/files.out" tests/expected/files.txt && [ ! -e "$T/out.txt" ]; then echo "ok   files (-fs sandbox)"; else echo "FAIL files"; fail=1; fi
 rc=0; ./tvm "$T/files.tvb" > "$T/nofs.out" || rc=$?
-if [ $rc -eq 1 ] && cmp -s "$T/nofs.out" tests/expected/nofs.txt; then echo "ok   files (disabled without -fs)"; else echo "FAIL files without -fs"; fail=1; fi
+if [ $rc -eq 1 ] && same "$T/nofs.out" tests/expected/nofs.txt; then echo "ok   files (disabled without -fs)"; else echo "FAIL files without -fs"; fail=1; fi
+
+# stdout must be written byte for byte (no CRLF translation on Windows): "Hello, World!\n" is 14 bytes
+n=$(./tvm "$T/hello.tvb" | wc -c | tr -d ' ')
+if [ "$n" = "14" ]; then echo "ok   output is plain LF"; else echo "FAIL output is $n bytes, expected 14"; fail=1; fi
 
 # disassembler
 ./tdis "$T/hello.tvb" 0 8 > "$T/hello.dis"
-if cmp -s "$T/hello.dis" tests/expected/hello.dis; then echo "ok   tdis"; else echo "FAIL tdis"; fail=1; fi
+if same "$T/hello.dis" tests/expected/hello.dis; then echo "ok   tdis"; else echo "FAIL tdis"; fail=1; fi
 
 # portable switch dispatch (no computed goto)
 $CC -O2 -DTVM_NO_GOTO $SDLC -o "$T/tvm_sw" main.c vm.c gui_sdl.c $SDLL -lm
-if "$T/tvm_sw" "$T/fib.tvb" | cmp -s - tests/expected/fib.txt; then echo "ok   fib (switch dispatch)"; else echo "FAIL switch dispatch"; fail=1; fi
+"$T/tvm_sw" "$T/fib.tvb" > "$T/fib_sw.out"
+if same "$T/fib_sw.out" tests/expected/fib.txt; then echo "ok   fib (switch dispatch)"; else echo "FAIL switch dispatch"; fail=1; fi
 
 # GUI: replay scripted events with the dummy video driver
 F="$SDLC -O2"
@@ -48,7 +60,7 @@ $CC $F -c tests/gui_events.c -o "$T/e.o"
 $CC -o "$T/tvm_events" "$T/m.o" "$T/v.o" "$T/g.o" "$T/e.o" $SDLL -lm
 SDL_VIDEODRIVER=dummy TVM_DUMP="$T/w" "$T/tvm_events" "$T/win2.tvb"
 sum=$(cat "$T/w0.ppm" "$T/w1.ppm" | hash)
-if [ "$sum" = "$(cat tests/expected/win2.md5)" ]; then echo "ok   win2 (scripted events)"; else echo "FAIL win2"; fail=1; fi
+if [ "$sum" = "$(tr -d '\r' < tests/expected/win2.md5)" ]; then echo "ok   win2 (scripted events)"; else echo "FAIL win2"; fail=1; fi
 
 # every GUI example must start and keep running (timeout = 124) with the dummy video driver
 if [ -n "$TO" ]; then
@@ -70,14 +82,14 @@ for f in examples/tc/*.tc tests/lang.tc; do
 done
 for n in hello fizzbuzz sort; do
     ./tvm "$T/tc_$n.tvb" > "$T/tc_$n.out"
-    if cmp -s "$T/tc_$n.out" "tests/expected/tc_$n.txt"; then echo "ok   tc $n"; else echo "FAIL tc $n"; fail=1; fi
+    if same "$T/tc_$n.out" "tests/expected/tc_$n.txt"; then echo "ok   tc $n"; else echo "FAIL tc $n"; fail=1; fi
 done
 ./tvm "$T/tc_primes.tvb" > "$T/tc_primes.out"
-if cmp -s "$T/tc_primes.out" tests/expected/primes.txt; then echo "ok   tc primes (same output as the assembly version)"; else echo "FAIL tc primes"; fail=1; fi
+if same "$T/tc_primes.out" tests/expected/primes.txt; then echo "ok   tc primes (same output as the assembly version)"; else echo "FAIL tc primes"; fail=1; fi
 ./tvm -fs "$T" "$T/tc_files.tvb" > "$T/tc_files.out"
-if cmp -s "$T/tc_files.out" tests/expected/tc_files.txt && [ ! -e "$T/numbers.txt" ]; then echo "ok   tc files"; else echo "FAIL tc files"; fail=1; fi
+if same "$T/tc_files.out" tests/expected/tc_files.txt && [ ! -e "$T/numbers.txt" ]; then echo "ok   tc files"; else echo "FAIL tc files"; fail=1; fi
 rc=0; ./tvm "$T/tc_lang.tvb" > "$T/tc_lang.out" || rc=$?
-if [ $rc -eq 3 ] && cmp -s "$T/tc_lang.out" tests/expected/lang.txt; then echo "ok   tc lang (all language features, exit code 3)"; else echo "FAIL tc lang (exit $rc)"; fail=1; fi
+if [ $rc -eq 3 ] && same "$T/tc_lang.out" tests/expected/lang.txt; then echo "ok   tc lang (all language features, exit code 3)"; else echo "FAIL tc lang (exit $rc)"; fail=1; fi
 
 check_err() {   # source text, expected message fragment
     printf '%s\n' "$1" > "$T/err.tc"
