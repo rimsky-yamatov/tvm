@@ -25,6 +25,12 @@ done
 rc=0; printf 'hello\nworld\n' | ./tvm "$T/echo.tvb" > "$T/echo.out" || rc=$?
 if [ $rc -eq 2 ] && cmp -s "$T/echo.out" tests/expected/echo.txt; then echo "ok   echo (stdin, exit code)"; else echo "FAIL echo (exit $rc)"; fail=1; fi
 
+# sandboxed file I/O: works with -fs DIR, ".." is refused, everything fails without -fs
+./tvm -fs "$T" "$T/files.tvb" > "$T/files.out"
+if cmp -s "$T/files.out" tests/expected/files.txt && [ ! -e "$T/out.txt" ]; then echo "ok   files (-fs sandbox)"; else echo "FAIL files"; fail=1; fi
+rc=0; ./tvm "$T/files.tvb" > "$T/nofs.out" || rc=$?
+if [ $rc -eq 1 ] && cmp -s "$T/nofs.out" tests/expected/nofs.txt; then echo "ok   files (disabled without -fs)"; else echo "FAIL files without -fs"; fail=1; fi
+
 # disassembler
 ./tdis "$T/hello.tvb" 0 8 > "$T/hello.dis"
 if cmp -s "$T/hello.dis" tests/expected/hello.dis; then echo "ok   tdis"; else echo "FAIL tdis"; fail=1; fi
