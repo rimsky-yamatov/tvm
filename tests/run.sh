@@ -63,4 +63,39 @@ fi
 rc=0; SDL_AUDIODRIVER=dummy ./tvm "$T/music.tvb" || rc=$?
 if [ $rc -eq 0 ]; then echo "ok   music"; else echo "FAIL music (exit $rc)"; fail=1; fi
 
+# ---- C-like language: tvc -> tasm -> tvm ----
+for f in examples/tc/*.tc tests/lang.tc; do
+    n=$(basename "$f" .tc)
+    if ./tvc "$f" "$T/tc_$n.tas" && ./tasm "$T/tc_$n.tas" "$T/tc_$n.tvb" 2>/dev/null; then :; else echo "FAIL compile $n"; fail=1; fi
+done
+for n in hello fizzbuzz sort; do
+    ./tvm "$T/tc_$n.tvb" > "$T/tc_$n.out"
+    if cmp -s "$T/tc_$n.out" "tests/expected/tc_$n.txt"; then echo "ok   tc $n"; else echo "FAIL tc $n"; fail=1; fi
+done
+./tvm "$T/tc_primes.tvb" > "$T/tc_primes.out"
+if cmp -s "$T/tc_primes.out" tests/expected/primes.txt; then echo "ok   tc primes (same output as the assembly version)"; else echo "FAIL tc primes"; fail=1; fi
+./tvm -fs "$T" "$T/tc_files.tvb" > "$T/tc_files.out"
+if cmp -s "$T/tc_files.out" tests/expected/tc_files.txt && [ ! -e "$T/numbers.txt" ]; then echo "ok   tc files"; else echo "FAIL tc files"; fail=1; fi
+rc=0; ./tvm "$T/tc_lang.tvb" > "$T/tc_lang.out" || rc=$?
+if [ $rc -eq 3 ] && cmp -s "$T/tc_lang.out" tests/expected/lang.txt; then echo "ok   tc lang (all language features, exit code 3)"; else echo "FAIL tc lang (exit $rc)"; fail=1; fi
+
+check_err() {   # source text, expected message fragment
+    printf '%s\n' "$1" > "$T/err.tc"
+    if ./tvc "$T/err.tc" "$T/err.tas" 2> "$T/err.out"; then echo "FAIL (accepted) $2"; fail=1
+    elif grep -q "$2" "$T/err.out"; then echo "ok   error: $2"; else echo "FAIL (message) $2"; fail=1; fi
+}
+check_err 'void main() { x = 1; }' "undeclared identifier"
+check_err 'void main() { puti(1, 2); }' "expects 1 argument"
+check_err 'void main() { int a[4]; }' "local arrays"
+check_err 'int f() { return 1; }' "no main function"
+check_err 'void main() { int x = f(); } void f() { }' "void function used as a value"
+check_err 'void main() { break; }' "outside of a loop"
+
+if [ -n "$TO" ]; then
+    for n in bounce mandelbrot life paint; do
+        rc=0; SDL_VIDEODRIVER=dummy $TO 1 ./tvm "$T/tc_$n.tvb" > /dev/null 2>&1 || rc=$?
+        if [ $rc -eq 124 ]; then echo "ok   tc $n (runs)"; else echo "FAIL tc $n (exit $rc)"; fail=1; fi
+    done
+fi
+
 exit $fail

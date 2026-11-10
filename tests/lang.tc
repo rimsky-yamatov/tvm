@@ -1,0 +1,43 @@
+#define N 10
+int sq[N];
+char buf[32];
+char *msg = "ptr";
+int g = 7;
+int arr[] = {3, 1, 4, 1, 5, 9, 2, 6};
+int fact(int n) { if (n < 2) return 1; return n * fact(n - 1); }
+int fib(int n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }
+void bubble(int *a, int n) {
+    int i; int j; int t;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j + 1 < n - i; j++) {
+            if (a[j] > a[j + 1]) { t = a[j]; a[j] = a[j + 1]; a[j + 1] = t; }
+        }
+    }
+}
+int main() {
+    int i; int s = 0; char *p;
+    for (i = 0; i < N; i++) { sq[i] = i * i; s += sq[i]; }
+    puti(s); putc(10);
+    puti(fact(10)); putc(10);
+    puti(fib(15)); putc(10);
+    itoa(-12345, buf); puts(buf);
+    print(msg); putc(10);
+    puti(strlen("hello") + g); putc(10);
+    bubble(arr, 8);
+    for (i = 0; i < 8; i++) { puti(arr[i]); putc(32); }
+    putc(10);
+    p = buf; i = 0;
+    while (1) { if (p[i] == 0) break; i++; }
+    puti(i); putc(10);
+    i = 5; i <<= 2; i |= 1; i ^= 3; i -= 1; i %= 7;
+    puti(i); putc(10);
+    puti((3 > 2) && (2 > 1) || 0); putc(10);
+    puti(!5 + !0); putc(10);
+    puti(-7 / 2); putc(32); puti(-7 % 3); putc(10);
+    puti(10 > 5 ? 100 : 200); putc(10);
+    puti(abs(-9) + min(3, 4) + max(3, 4)); putc(10);
+    puti(fmul(98304, 163840)); putc(10);
+    for (i = 0; i < 20; i++) { if (i % 2) continue; if (i > 8) break; puti(i); putc(32); }
+    putc(10);
+    return 3;
+}
