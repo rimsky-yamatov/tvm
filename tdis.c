@@ -3,6 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+#endif
 #include "tvm.h"
 
 static const char *name[256];
@@ -12,6 +16,9 @@ int main(int argc, char **argv)
 {
     static uint8_t m[65536 + 8];
     FILE *f; size_t n; long pc, end, a, v; int op, k, i;
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     if (argc < 2) { fprintf(stderr, "usage: tdis file.tvb [start [end]]\n"); return 2; }
     for (i = 0; i < 256; i++) kind[i] = -1;
 #define X(n,c,k) name[c] = #n; kind[c] = K_##k;

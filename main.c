@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+#endif
 #include "tvm.h"
 #include "gui.h"
 
@@ -87,6 +91,10 @@ int main(int argc, char **argv)
 {
     static uint8_t img[MEMSZ + 16];
     FILE *f; size_t n, off = 0; u32 entry = 0; int rc;
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);     /* no CRLF translation: same bytes on every OS */
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     if (argc < 2) { fprintf(stderr, "usage: tvm prog.tvb   (env TVM_SCALE=n for window zoom)\n"); return 2; }
     if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
     n = fread(img, 1, sizeof img, f);
