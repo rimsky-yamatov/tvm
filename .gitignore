@@ -1,6 +1,6 @@
 tvm
 tasm
 tdis
-*.tvm
+*.tvb
 *.o
 *.ppm

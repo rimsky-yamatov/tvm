@@ -1,4 +1,4 @@
-/* tdis.c - disassembler for tvm.  usage: tdis file.tvm [start [end]]
+/* tdis.c - disassembler for tvm.  usage: tdis file.tvb [start [end]]
  * Linear sweep: data bytes show up as .byte lines or as nonsense instructions; give start/end to skip them. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 {
     static uint8_t m[65536 + 8];
     FILE *f; size_t n; long pc, end, a, v; int op, k, i;
-    if (argc < 2) { fprintf(stderr, "usage: tdis file.tvm [start [end]]\n"); return 2; }
+    if (argc < 2) { fprintf(stderr, "usage: tdis file.tvb [start [end]]\n"); return 2; }
     for (i = 0; i < 256; i++) kind[i] = -1;
 #define X(n,c,k) name[c] = #n; kind[c] = K_##k;
     TVM_OPS(X)

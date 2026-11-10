@@ -2,9 +2,9 @@
 
 ```
 make                      # 要 SDL2 と libm。tvm / tasm / tdis ができる
-./tasm examples/hello.tas && ./tvm examples/hello.tvm
-./tasm examples/win2.tas  && ./tvm examples/win2.tvm     # TVM_SCALE=3 でズーム変更
-./tdis examples/hello.tvm                                        # 逆アセンブル
+./tasm examples/hello.tas && ./tvm examples/hello.tvb
+./tasm examples/win2.tas  && ./tvm examples/win2.tvb     # TVM_SCALE=3 でズーム変更
+./tdis examples/hello.tvb                                        # 逆アセンブル
 make test                                                 # 全サンプルとテスト
 ```
 
@@ -18,7 +18,7 @@ make test                                                 # 全サンプルと�
 | `tasm.c` / `tdis.c` | アセンブラ / 逆アセンブラ |
 
 ## ファイル形式
-拡張子は、ソースが `.tas`、バイトコードが `.tvm`。`./tasm hello.tas` で `hello.tvm` ができる(出力名は第2引数でも指定可)。
+拡張子は、ソースが `.tas`、バイトコードが `.tvb`。`./tasm hello.tas` で `hello.tvb` ができる(出力名は第2引数でも指定可)。
 
 `[0xB1][開始アドレス ULEB128][イメージ…]`(通常ヘッダ2バイト)。イメージは0番地にロードされ、開始アドレスから実行。
 アセンブラは `.entry` 指定、なければラベル `main`、なければ0を開始アドレスにする。`0xB1` で始まらないファイルはヘッダなしの生イメージとして0番地から実行。

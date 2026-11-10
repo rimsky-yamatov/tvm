@@ -18,4 +18,4 @@ test:
 	sh tests/run.sh
 
 clean:
-	rm -f tvm tasm tdis *.tvm
+	rm -f tvm tasm tdis *.tvb

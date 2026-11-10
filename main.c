@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 {
     static uint8_t img[MEMSZ + 16];
     FILE *f; size_t n, off = 0; u32 entry = 0; int rc;
-    if (argc < 2) { fprintf(stderr, "usage: tvm prog.tvm   (env TVM_SCALE=n for window zoom)\n"); return 2; }
+    if (argc < 2) { fprintf(stderr, "usage: tvm prog.tvb   (env TVM_SCALE=n for window zoom)\n"); return 2; }
     if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
     n = fread(img, 1, sizeof img, f);
     fclose(f);
