@@ -34,6 +34,76 @@ static void getstr(VM *v, u32 p, char *buf, int n)
     buf[i] = 0;
 }
 
+/* ---- sandboxed file I/O: only active with  tvm -fs DIR  ---- */
+static FILE *files[8];
+static const char *fsroot;              /* NULL = disabled */
+
+/* relative paths only: no absolute paths, drive letters, backslashes or ".." components */
+static int safe_rel(const char *p)
+{
+    const char *q; size_t n = strlen(p);
+    if (!n || n > 200 || p[0] == '/') return 0;
+    for (q = p; *q; q++) if (*q == '\\' || *q == ':') return 0;
+    for (q = p; *q; ) {
+        if (q[0] == '.' && q[1] == '.' && (q[2] == '/' || q[2] == 0)) return 0;
+        while (*q && *q != '/') q++;
+        if (*q == '/') q++;
+    }
+    return 1;
+}
+
+static int resolve(VM *v, u32 pathp, char *full, size_t n)
+{
+    char rel[256];
+    if (!fsroot) return 0;
+    getstr(v, pathp, rel, sizeof rel);
+    if (!safe_rel(rel)) return 0;
+    snprintf(full, n, "%s/%s", fsroot, rel);
+    return 1;
+}
+
+static FILE *H(u32 h) { return h < 8 ? files[h] : NULL; }
+
+static i32 f_open(VM *v, u32 pathp, u32 mode)
+{
+    static const char *m[] = { "rb", "wb", "ab", "r+b" };
+    char full[1100]; int i;
+    if (mode > 3 || !resolve(v, pathp, full, sizeof full)) return -1;
+    for (i = 0; i < 8 && files[i]; i++) ;
+    if (i == 8) return -1;
+    files[i] = fopen(full, m[mode]);
+    return files[i] ? i : -1;
+}
+
+static i32 f_close(u32 h) { FILE *f = H(h); if (!f) return -1; files[h] = NULL; return fclose(f) ? -1 : 0; }
+
+static i32 f_read(VM *v, u32 h, u32 p, u32 n)
+{
+    static uint8_t tmp[65536]; FILE *f = H(h); size_t r, i;
+    if (!f) return -1;
+    if (n > 65536) n = 65536;
+    r = fread(tmp, 1, n, f);
+    for (i = 0; i < r; i++) v->mem[(uint16_t)(p + i)] = tmp[i];
+    return (i32)r;
+}
+
+static i32 f_write(VM *v, u32 h, u32 p, u32 n)
+{
+    static uint8_t tmp[65536]; FILE *f = H(h); size_t i;
+    if (!f) return -1;
+    if (n > 65536) n = 65536;
+    for (i = 0; i < n; i++) tmp[i] = v->mem[(uint16_t)(p + i)];
+    return (i32)fwrite(tmp, 1, n, f);
+}
+
+static i32 f_size(u32 h)
+{
+    FILE *f = H(h); long cur, sz;
+    if (!f) return -1;
+    cur = ftell(f); fseek(f, 0, SEEK_END); sz = ftell(f); fseek(f, cur, SEEK_SET);
+    return (i32)sz;
+}
+
 /* Arguments are pushed left to right, so the last argument is on top of the stack. */
 int tvm_sys(VM *v, int n)
 {
@@ -82,6 +152,15 @@ int tvm_sys(VM *v, int n)
     case 41: a = vpop(v); vpush(v, (u32)(i32)lround(cos((double)(i32)a * PI / 180.0) * 65536.0)); break;  /* COS(deg) -> 16.16 */
     case 42: a = vpop(v); vpush(v, (i32)a < 0 ? 0 : isqrt(a)); break;                                     /* SQRT(n)           */
     case 50: b = vpop(v); a = vpop(v); gui_beep((int)a, (int)b); break;      /* BEEP(freq,ms)     */
+    case 60: b = vpop(v); a = vpop(v); vpush(v, (u32)f_open(v, a, b)); break;           /* FOPEN(path,mode) -> h/-1; mode 0 r,1 w,2 a,3 r+ */
+    case 61: a = vpop(v); vpush(v, (u32)f_close(a)); break;                             /* FCLOSE(h) -> 0/-1    */
+    case 62: c = vpop(v); b = vpop(v); a = vpop(v); vpush(v, (u32)f_read(v, a, b, c)); break;   /* FREAD(h,ptr,n) -> count */
+    case 63: c = vpop(v); b = vpop(v); a = vpop(v); vpush(v, (u32)f_write(v, a, b, c)); break;  /* FWRITE(h,ptr,n) -> count */
+    case 64: a = vpop(v); vpush(v, H(a) ? (u32)fgetc(H(a)) : (u32)-1); break;          /* FGETC(h) -> byte/-1  */
+    case 65: b = vpop(v); a = vpop(v); vpush(v, H(a) ? (u32)fputc((int)(b & 255), H(a)) : (u32)-1); break;   /* FPUTC(h,c) */
+    case 66: b = vpop(v); a = vpop(v); vpush(v, H(a) && fseek(H(a), (long)(i32)b, SEEK_SET) == 0 ? 0u : (u32)-1); break; /* FSEEK(h,pos) */
+    case 67: a = vpop(v); vpush(v, (u32)f_size(a)); break;                              /* FSIZE(h) -> bytes/-1 */
+    case 68: a = vpop(v); { char full[1100]; vpush(v, resolve(v, a, full, sizeof full) && remove(full) == 0 ? 0u : (u32)-1); } break; /* FREMOVE(path) */
     case 99: exit_code = (int)vpop(v); exited = 1; return 1;                                                   /* EXIT               */
     }
     return 0;
@@ -90,13 +169,14 @@ int tvm_sys(VM *v, int n)
 int main(int argc, char **argv)
 {
     static uint8_t img[MEMSZ + 16];
-    FILE *f; size_t n, off = 0; u32 entry = 0; int rc;
+    FILE *f; size_t n, off = 0; u32 entry = 0; int rc, ai = 1, i;
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);     /* no CRLF translation: same bytes on every OS */
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
-    if (argc < 2) { fprintf(stderr, "usage: tvm prog.tvb   (env TVM_SCALE=n for window zoom)\n"); return 2; }
-    if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
+    if (argc > 3 && !strcmp(argv[1], "-fs")) { fsroot = argv[2]; ai = 3; }     /* enable file I/O below DIR */
+    if (argc <= ai) { fprintf(stderr, "usage: tvm [-fs DIR] prog.tvb   (env TVM_SCALE=n for window zoom)\n"); return 2; }
+    if (!(f = fopen(argv[ai], "rb"))) { perror(argv[ai]); return 1; }
     n = fread(img, 1, sizeof img, f);
     fclose(f);
     if (n && img[0] == TVM_MAGIC) {                 /* header: [0xB1][entry ULEB128] */
@@ -110,6 +190,7 @@ int main(int argc, char **argv)
     vm.entry = (uint16_t)entry;
     rc = tvm_run(&vm);
     if (rc && !exited) fprintf(stderr, "tvm: invalid opcode\n");
+    for (i = 0; i < 8; i++) if (files[i]) fclose(files[i]);
     gui_quit();
     return exited ? exit_code : rc;
 }
