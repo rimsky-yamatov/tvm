@@ -274,8 +274,15 @@ static void line(char *s)
 
 int main(int argc, char **argv)
 {
-    FILE *f; char *buf, tmp[512], *b, *e; long n; size_t l; int i, k;
-    if (argc < 3) { fprintf(stderr, "usage: tasm in.tas [out.tvm]\n"); return 2; }
+    FILE *f; char *buf, tmp[512], oname[1024], *b, *e, *dot; long n; size_t l; int i, k;
+    if (argc < 2) { fprintf(stderr, "usage: tasm in.tas [out.tvm]\n"); return 2; }
+    if (argc > 2) snprintf(oname, sizeof oname, "%s", argv[2]);
+    else {                                              /* default: replace the extension with .tvm */
+        snprintf(oname, sizeof oname, "%s", argv[1]);
+        dot = strrchr(oname, '.');
+        if (dot && !strchr(dot, '/')) *dot = 0;
+        strncat(oname, ".tvm", sizeof oname - strlen(oname) - 1);
+    }
     fname = argv[1];
     if (!(f = fopen(fname, "rb"))) { perror(fname); return 1; }
     fseek(f, 0, SEEK_END); n = ftell(f); fseek(f, 0, SEEK_SET);
@@ -300,7 +307,7 @@ int main(int argc, char **argv)
     ln = 0;
     if (changed) die("did not converge", 0);
     for (k = 0; k < nsy; k++) if (!sy[k].def) die("undefined symbol", sy[k].n);
-    if (!(f = fopen(argv[2], "wb"))) { perror(argv[2]); return 1; }
+    if (!(f = fopen(oname, "wb"))) { perror(oname); return 1; }
     {   uint8_t hdr[8]; int hn = 0; long ent = 0; unsigned long e;
         if (has_entry) ent = entry_val;
         else for (k = 0; k < nsy; k++) if (!strcmp(sy[k].n, "main")) ent = sy[k].v;
