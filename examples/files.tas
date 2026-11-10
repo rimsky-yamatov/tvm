@@ -1,0 +1,77 @@
+; files.tas - sandboxed file I/O: write a file, read it back, try to escape the sandbox, delete the file.
+; run with:  tvm -fs DIR files.tvb      (without -fs every file call fails)
+        .equ PUTI,    1
+        .equ FOPEN,   60
+        .equ FCLOSE,  61
+        .equ FWRITE,  63
+        .equ FGETC,   64
+        .equ FREMOVE, 68
+        .equ EXIT,    99
+main:   ENTER 1                 ; 0 = file handle
+        PUSH name
+        PUSH 1                  ; mode: 0 read, 1 write, 2 append, 3 read/write
+        SYS FOPEN
+        DUP
+        STL 0
+        PUSH 0
+        LT                      ; handle < 0 ?
+        JZ opened
+        PUSH nofs
+        CALL puts
+        PUSH 1
+        SYS EXIT
+opened: LDL 0
+        PUSH msg
+        PUSH msgend-msg-1       ; length without the NUL
+        SYS FWRITE
+        DROP
+        LDL 0
+        SYS FCLOSE
+        DROP
+        PUSH name
+        PUSH 0
+        SYS FOPEN
+        STL 0
+rd:     LDL 0
+        SYS FGETC
+        DUP
+        PUSH 0
+        LT
+        JNZ rdend
+        SYS 0                   ; PUTC
+        JMP rd
+rdend:  DROP
+        LDL 0
+        SYS FCLOSE
+        DROP
+        PUSH escape
+        PUSH 1
+        SYS FOPEN               ; "../escape.txt" must be refused (-1)
+        PUSH blocked
+        CALL puts
+        SYS PUTI
+        PUTC 10
+        PUSH name
+        SYS FREMOVE
+        DROP
+        HALT
+
+puts:                           ; puts(ptr)
+putsl:  LDL -1
+        LD8
+        DUP
+        JZ putse
+        SYS 0
+        LDL -1
+        INC
+        STL -1
+        JMP putsl
+putse:  DROP
+        RET 1
+
+name:    .str "out.txt"
+msg:     .str "Hello from tvm file I/O\n"
+msgend:
+escape:  .str "../escape.txt"
+blocked: .str "blocked: "
+nofs:    .str "file I/O is disabled (run: tvm -fs DIR prog.tvb)\n"
