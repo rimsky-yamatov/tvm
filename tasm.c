@@ -308,7 +308,7 @@ int main(int argc, char **argv)
     if (changed) die("did not converge", 0);
     for (k = 0; k < nsy; k++) if (!sy[k].def) die("undefined symbol", sy[k].n);
     if (!(f = fopen(oname, "wb"))) { perror(oname); return 1; }
-    {   uint8_t hdr[8]; int hn = 0; long ent = 0; unsigned long e;
+    {   uint8_t hdr[8]; int hn = 0; long ent = 0, len; unsigned long e;
         if (has_entry) ent = entry_val;
         else for (k = 0; k < nsy; k++) if (!strcmp(sy[k].n, "main")) ent = sy[k].v;
         if (ent < 0 || ent > 65535) die("entry out of range", 0);
@@ -316,10 +316,12 @@ int main(int argc, char **argv)
         e = (unsigned long)ent;
         do { hdr[hn] = (uint8_t)(e & 127); e >>= 7; if (e) hdr[hn] |= 128; hn++; } while (e);
         fwrite(hdr, 1, (size_t)hn, f);
-        fwrite(out, 1, (size_t)pc, f);
+        len = pc > 65536 ? 65536 : pc;
+        while (len > 1 && out[len - 1] == 0) len--;       /* VM memory starts zeroed: trailing zeros need not be stored */
+        fwrite(out, 1, (size_t)len, f);
         fclose(f);
         (void)i;
-        fprintf(stderr, "tasm: %ld bytes (+%d header)\n", pc, hn);
+        fprintf(stderr, "tasm: %ld bytes (+%d header)\n", len, hn);
     }
     return 0;
 }
