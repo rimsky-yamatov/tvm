@@ -1,0 +1,21 @@
+// bounce.tc - a bouncing square. Esc / close quits.
+void main() {
+    int x = 20; int y = 30; int dx = 3; int dy = 2; int t; int quit = 0;
+    win(200, 150);
+    wtitle("bounce");
+    while (!quit) {
+        t = poll();
+        while (t) {
+            if (t == 1 || t == 6) quit = 1;
+            if (t == 2 && ev_a == 27) quit = 1;
+            t = poll();
+        }
+        x += dx; y += dy;
+        if (x < 0 || x > 192) dx = -dx;
+        if (y < 0 || y > 142) dy = -dy;
+        clear(0);
+        rect(x, y, 8, 8, 14);
+        flip();
+        sleep(16);
+    }
+}
