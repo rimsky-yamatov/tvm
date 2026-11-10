@@ -12,7 +12,7 @@ SDL_CFLAGS := $(filter-out -Dmain=SDL_main,$(shell sdl2-config --cflags))
 
 .PHONY: all clean test
 
-all: tvm$(EXE) tasm$(EXE) tdis$(EXE)
+all: tvm$(EXE) tasm$(EXE) tdis$(EXE) tvc$(EXE)
 
 tvm$(EXE): main.c vm.c gui_sdl.c tvm.h gui.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ main.c vm.c gui_sdl.c $(SDL_LIBS) -lm
@@ -23,8 +23,11 @@ tasm$(EXE): tasm.c tvm.h
 tdis$(EXE): tdis.c tvm.h
 	$(CC) $(CFLAGS) -o $@ tdis.c
 
+tvc$(EXE): tvc.c
+	$(CC) $(CFLAGS) -o $@ tvc.c
+
 test:
 	sh tests/run.sh
 
 clean:
-	rm -f tvm tasm tdis *.exe *.tvb
+	rm -f tvm tasm tdis tvc *.exe *.tvb
