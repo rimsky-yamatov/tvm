@@ -1,15 +1,25 @@
-# tinyvm — 小さくて速い、C99のスタックVM(複数ウィンドウGUI・音・固定小数点対応)
+# tinyvm — 小さくて速い、C99のスタックVM(GUI・音・ファイルI/O・C風言語つき)
 
 ```
-make                      # 要 SDL2 と libm。tvm / tasm / tdis ができる
+make                                    # 要 SDL2 と libm。tvm / tasm / tdis / tvc ができる
 ./tasm examples/hello.tas && ./tvm examples/hello.tvb
-./tasm examples/win2.tas  && ./tvm examples/win2.tvb     # TVM_SCALE=3 でズーム変更
-./tdis examples/hello.tvb                                        # 逆アセンブル
-make test                                                 # 全サンプルとテスト
+./tvc examples/tc/hello.tc && ./tasm examples/tc/hello.tas && ./tvm examples/tc/hello.tvb
+./tdis examples/hello.tvb               # 逆アセンブル
+make test                               # 全サンプルとテスト
 ```
+
+## ツール
+| コマンド | 役割 |
+|---|---|
+| `tvm [-fs DIR] prog.tvb` | VM本体。`-fs DIR` でそのディレクトリ配下のファイルI/Oを許可 |
+| `tasm in.tas [out.tvb]` | アセンブラ(`.tas` → `.tvb`) |
+| `tvc in.tc [out.tas]` | C風言語のコンパイラ(`.tc` → `.tas`)。言語仕様は [LANGUAGE.md](LANGUAGE.md) |
+| `tdis file.tvb [start [end]]` | 逆アセンブラ |
+
+拡張子は、C風ソースが `.tc`、アセンブリが `.tas`、バイトコードが `.tvb`。
 
 ## ビルド済みバイナリとCI
-GitHub Actions(`.github/workflows/build.yml`)が Linux / macOS / Windows でビルドとテストを行い、成果物(`tvm` `tasm` `tdis` + examples)をアーティファクトとして保存します。
+GitHub Actions(`.github/workflows/build.yml`)が Linux / macOS / Windows でビルドとテストを行い、成果物(`tvm` `tasm` `tdis` `tvc` + examples)をアーティファクトとして保存します。
 `v1.0.0` のような `v*` タグをpushすると、各OS向けのアーカイブがReleasesに自動で公開されます。
 
 ```
@@ -25,15 +35,14 @@ git tag v1.0.0 && git push origin v1.0.0
 |---|---|
 | `tvm.h` | 命令表(X-macro)、ファイルヘッダ定義。VM・アセンブラ・逆アセンブラで共有 |
 | `vm.c` | VMコア(libc不使用、確保なし、computed goto / switch自動切替) |
-| `main.c` | ホスト: 読込、`SYS`実装(コンソール、GUI、音、数学) |
+| `main.c` | ホスト: 読込、`SYS`実装(コンソール、GUI、音、数学、ファイル) |
 | `gui.h` / `gui_sdl.c` | GUIバックエンド境界 / SDL2実装(最大8ウィンドウ) |
-| `tasm.c` / `tdis.c` | アセンブラ / 逆アセンブラ |
+| `tasm.c` / `tdis.c` / `tvc.c` | アセンブラ / 逆アセンブラ / C風言語コンパイラ |
 
 ## ファイル形式
-拡張子は、ソースが `.tas`、バイトコードが `.tvb`。`./tasm hello.tas` で `hello.tvb` ができる(出力名は第2引数でも指定可)。
-
 `[0xB1][開始アドレス ULEB128][イメージ…]`(通常ヘッダ2バイト)。イメージは0番地にロードされ、開始アドレスから実行。
 アセンブラは `.entry` 指定、なければラベル `main`、なければ0を開始アドレスにする。`0xB1` で始まらないファイルはヘッダなしの生イメージとして0番地から実行。
+イメージ末尾のゼロバイトは保存されません(VMのメモリは0で始まるため同じ動作になります)。そのため、ゼロ初期化の配列はファイルサイズに影響しません。
 
 ## 実行モデル
 - 値は32bit。データスタック1024、メモリ64KB(コードとデータ共有、アドレスは16bitで折り返し)。範囲外アクセスでクラッシュしない
@@ -70,12 +79,24 @@ git tag v1.0.0 && git push origin v1.0.0
 | 40 / 41 | SIN / COS | 度 → 16.16固定小数点 |
 | 42 | SQRT | n → 整数平方根 |
 | 50 | BEEP | freq,ms(矩形波、即座に戻る) |
+| 60 | FOPEN | path,mode → h / -1(mode: 0読 1書 2追記 3読書) |
+| 61 | FCLOSE | h → 0 / -1 |
+| 62 / 63 | FREAD / FWRITE | h,ptr,n → バイト数 / -1 |
+| 64 / 65 | FGETC / FPUTC | h → byte / -1(EOF) ・ h,c → c / -1 |
+| 66 / 67 | FSEEK / FSIZE | h,pos → 0 / -1 ・ h → バイト数 / -1 |
+| 68 | FREMOVE | path → 0 / -1 |
 | 99 | EXIT | code(プロセスの終了コードになる) |
 
 イベント type: 0なし 1終了 2キー(a=コード,b=押下) 3移動(a=x,b=y) 4/5マウス押/離 6ウィンドウ閉(winに対象)。
 キーはASCIIはそのまま、特殊キーは 128+scancode(→207 ←208 ↓209 ↑210)。色は8bitパレット(0–15 ANSI、16–231 色立方体、232–255 グレー)。
 
+### ファイルI/Oのサンドボックス
+`tvm -fs DIR` を付けたときだけ有効で、付けなければ全ての呼び出しが -1 を返します。DIR配下の相対パスだけが使え、絶対パス・`..`・`\`・`:` を含むパスは拒否されます。同時に開けるのは8ファイル。
+シンボリックリンクの先まではチェックしないため、信頼できないバイトコードを動かすときは DIR を空の専用ディレクトリにしてください。
+
 ## サンプル(`examples/`)
+アセンブリ(`examples/*.tas`):
+
 | ファイル | 内容 | 使っている機能 |
 |---|---|---|
 | `hello` | Hello, World! | `CALL` / `LD8` / `.str` |
@@ -84,19 +105,17 @@ git tag v1.0.0 && git push origin v1.0.0
 | `primes` | 100未満の素数(篩) | `MEMSET` / `LD8` / `ST8` |
 | `fixed` | 固定小数点と数学関数 | `FMUL` / `FDIV` / `SIN` / `COS` / `SQRT` / `ABS` |
 | `echo` | 標準入力を大文字にして出力、行数を終了コードに | `GETC` / `EXIT` |
+| `files` | 書く→読む→`..`の拒否→削除 | `FOPEN` 〜 `FREMOVE`(`-fs` 必須) |
 | `music` | ドレミファソラシド | `BEEP` |
-| `lines` | 256色の放射線 | `LINE` |
-| `bounce` | 跳ね返る四角 | `FLIP` / `SLEEP` / イベントループ |
-| `paint` | マウスで描く(1-9で色、cで消去) | マウス/キーイベント、`RECT` |
-| `circles` | 12個の点が回る | `CIRCLE` / `FCIRCLE` / `SIN` / `COS` |
-| `sprite` | 透過スプライトのスタンプ(右ボタンで消去) | `BLIT` / `MOUSE` |
-| `stopwatch` | アナログのストップウォッチ | `LINE` / `TICK` / `SIN` / `COS` |
-| `counter` | 経過秒とフレーム数を2ウィンドウで表示 | 複数ウィンドウ、アセンブリ内itoa |
-| `win2` | 2ウィンドウでマウス追従 | `WSEL` / `POLL` |
+| `lines` `bounce` `paint` | 放射線 / 跳ね返る四角 / お絵かき | `LINE` / アニメーション / マウス・キー |
+| `circles` `sprite` `stopwatch` | 回る点 / 透過スプライト / アナログ時計 | `CIRCLE` `SIN` `COS` / `BLIT` `MOUSE` / `TICK` |
+| `counter` `win2` | 2ウィンドウ(経過秒とフレーム数 / マウス追従) | 複数ウィンドウ、アセンブリ内itoa |
+
+C風言語(`examples/tc/*.tc`): `hello` `fizzbuzz` `primes` `sort`(クイックソート)`files` `bounce` `mandelbrot`(固定小数点)`life`(ライフゲーム)`paint`
 
 ## テスト
-`make test`(または `sh tests/run.sh`)で、全サンプルのアセンブル、コンソール出力の比較、標準入力と終了コード、逆アセンブラ、
-switchディスパッチ版、擬似イベント(`tests/gui_events.c`)によるヘッドレスGUIテスト、GUI/音サンプルの起動確認(`SDL_VIDEODRIVER=dummy`)を実行します。
+`make test`(または `sh tests/run.sh`)で、全サンプルのアセンブルとコンパイル、出力と終了コードの比較、ファイルI/Oのサンドボックス、逆アセンブラ、
+switchディスパッチ版、コンパイラのエラーメッセージ、擬似イベント(`tests/gui_events.c`)によるヘッドレスGUIテスト、GUI/音サンプルの起動確認(`SDL_VIDEODRIVER=dummy`)を実行します。
 
 ## 移植
 `gui.h` の関数を実装すれば Win32/X11/Wasm 等へ差し替え可能。`TVM_DUMP=prefix` で FLIP ごとに PPM を書き出せる(ヘッドレステスト用)。
