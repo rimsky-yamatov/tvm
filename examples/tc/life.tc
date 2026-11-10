@@ -1,0 +1,40 @@
+// life.tc - Conway's Game of Life on a 64x48 torus. Esc / close quits.
+#define W 64
+#define H 48
+char cur[W * H];
+char nxt[W * H];
+
+int cell(int x, int y) { return cur[((y + H) % H) * W + (x + W) % W]; }
+
+void main() {
+    int x; int y; int i; int n; int t; int quit = 0;
+    win(W * 4, H * 4);
+    wtitle("life");
+    for (i = 0; i < W * H; i++) cur[i] = rnd(4) == 0;
+    while (!quit) {
+        t = poll();
+        while (t) {
+            if (t == 1 || t == 6) quit = 1;
+            if (t == 2 && ev_a == 27) quit = 1;
+            t = poll();
+        }
+        for (y = 0; y < H; y++) {
+            for (x = 0; x < W; x++) {
+                n = cell(x - 1, y - 1) + cell(x, y - 1) + cell(x + 1, y - 1)
+                  + cell(x - 1, y)                       + cell(x + 1, y)
+                  + cell(x - 1, y + 1) + cell(x, y + 1) + cell(x + 1, y + 1);
+                i = y * W + x;
+                nxt[i] = n == 3 || (n == 2 && cur[i]);
+            }
+        }
+        memcpy(cur, nxt, W * H);
+        clear(0);
+        for (y = 0; y < H; y++) {
+            for (x = 0; x < W; x++) {
+                if (cur[y * W + x]) rect(x * 4, y * 4, 3, 3, 10);
+            }
+        }
+        flip();
+        sleep(50);
+    }
+}
