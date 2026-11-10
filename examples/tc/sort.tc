@@ -1,0 +1,25 @@
+// sort.tc - recursive quicksort on a global int array
+#define N 10
+int a[] = {9, 4, 7, 1, 8, 2, 6, 3, 5, 0};
+
+void swap(int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+
+void qsort(int lo, int hi) {
+    int p; int i; int j;
+    if (lo >= hi) return;
+    p = a[(lo + hi) / 2]; i = lo; j = hi;
+    while (i <= j) {
+        while (a[i] < p) i++;
+        while (a[j] > p) j--;
+        if (i <= j) { swap(i, j); i++; j--; }
+    }
+    qsort(lo, j);
+    qsort(i, hi);
+}
+
+void main() {
+    int i;
+    qsort(0, N - 1);
+    for (i = 0; i < N; i++) { puti(a[i]); putc(32); }
+    putc(10);
+}
