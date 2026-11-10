@@ -1,6 +1,7 @@
 /* main.c - host: loads a binary, runs it, implements SYS calls (console + GUI). */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include "tvm.h"
 #include "gui.h"
@@ -84,12 +85,21 @@ int tvm_sys(VM *v, int n)
 
 int main(int argc, char **argv)
 {
-    FILE *f; size_t n; int rc;
+    static uint8_t img[MEMSZ + 16];
+    FILE *f; size_t n, off = 0; u32 entry = 0; int rc;
     if (argc < 2) { fprintf(stderr, "usage: tvm prog.bin   (env TVM_SCALE=n for window zoom)\n"); return 2; }
     if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
-    n = fread(vm.mem, 1, MEMSZ, f);
+    n = fread(img, 1, sizeof img, f);
     fclose(f);
-    if (!n) { fprintf(stderr, "tvm: empty program\n"); return 1; }
+    if (n && img[0] == TVM_MAGIC) {                 /* header: [0xB1][entry ULEB128] */
+        int s = 0, b;
+        for (off = 1; off < n; ) { b = img[off++]; entry |= (u32)(b & 127) << s; s += 7; if (!(b & 128) || s >= 21) break; }
+    }
+    if (n <= off) { fprintf(stderr, "tvm: empty program\n"); return 1; }
+    n -= off;
+    if (n > MEMSZ) n = MEMSZ;
+    memcpy(vm.mem, img + off, n);
+    vm.entry = (uint16_t)entry;
     rc = tvm_run(&vm);
     if (rc && !exited) fprintf(stderr, "tvm: invalid opcode\n");
     gui_quit();

@@ -4,6 +4,7 @@
  *   PUSH x            picks PUSH0 / PUSH1 / PUSHI8 / PUSHV automatically
  *   .equ NAME value   .byte a,b,..   .word a,..(32-bit LE)   .space n   .fill n,v   .org addr
  *   .str "text\n" (NUL-terminated)
+ *   .entry expr       start address (default: label main if defined, else 0); output = [0xB1][entry] + image
  *   operands: 123  0x1F  'A'  label  NAME  and expressions: ( ) * / + - << >> & |
  * Variable-length encodings are resolved by repeated passes; sizes only grow, so it always converges.
  */
@@ -29,6 +30,8 @@ static long pc;
 static uint8_t sz[32768];               /* sticky encoded size per variable-length instruction */
 static int ii, changed, pass, ln;
 static const char *fname;
+static long entry_val;
+static int has_entry;
 
 static void die(const char *m, const char *a)
 {
@@ -231,6 +234,9 @@ static void line(char *s)
                 break;
             }
             eol(s);
+        } else if (!strcmp(m, ".entry")) {
+            entry_val = expr((const char **)&s); has_entry = 1;
+            eol(s);
         } else if (!strcmp(m, ".org")) {
             long n = expr((const char **)&s);
             if (n < pc) die(".org moves backwards", 0);
@@ -295,9 +301,18 @@ int main(int argc, char **argv)
     if (changed) die("did not converge", 0);
     for (k = 0; k < nsy; k++) if (!sy[k].def) die("undefined symbol", sy[k].n);
     if (!(f = fopen(argv[2], "wb"))) { perror(argv[2]); return 1; }
-    fwrite(out, 1, (size_t)pc, f);
-    fclose(f);
-    (void)i;
-    fprintf(stderr, "tasm: %ld bytes\n", pc);
+    {   uint8_t hdr[8]; int hn = 0; long ent = 0; unsigned long e;
+        if (has_entry) ent = entry_val;
+        else for (k = 0; k < nsy; k++) if (!strcmp(sy[k].n, "main")) ent = sy[k].v;
+        if (ent < 0 || ent > 65535) die("entry out of range", 0);
+        hdr[hn++] = TVM_MAGIC;
+        e = (unsigned long)ent;
+        do { hdr[hn] = (uint8_t)(e & 127); e >>= 7; if (e) hdr[hn] |= 128; hn++; } while (e);
+        fwrite(hdr, 1, (size_t)hn, f);
+        fwrite(out, 1, (size_t)pc, f);
+        fclose(f);
+        (void)i;
+        fprintf(stderr, "tasm: %ld bytes (+%d header)\n", pc, hn);
+    }
     return 0;
 }

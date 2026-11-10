@@ -20,7 +20,7 @@ int tvm_run(VM *v)
     uint8_t *mem = v->mem;
     u32 *st = v->st;
     u32 sp = v->sp, fp = 0, a, b, c, rs[256];
-    uint16_t pc = 0;
+    uint16_t pc = v->entry;
     uint8_t rp = 0;
     i32 r;
 

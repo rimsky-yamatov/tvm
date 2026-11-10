@@ -34,7 +34,10 @@ enum {
 #define STK   1024              /* data stack (power of two; indices are masked) */
 #define MEMSZ 65536             /* code + data, 16-bit addresses (wrap around)   */
 
-typedef struct { u32 st[STK]; u32 sp; uint8_t mem[MEMSZ]; } VM;
+/* file header: [0xB1][entry: ULEB128] (2 bytes typically). Files without it are raw images that start at 0. */
+#define TVM_MAGIC 0xB1
+
+typedef struct { u32 st[STK]; u32 sp; uint16_t entry; uint8_t mem[MEMSZ]; } VM;
 
 static inline u32  vpop (VM *v)        { return v->st[--v->sp & (STK-1)]; }
 static inline void vpush(VM *v, u32 x) { v->st[v->sp++ & (STK-1)] = x; }

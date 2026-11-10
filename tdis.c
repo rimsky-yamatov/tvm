@@ -2,6 +2,7 @@
  * Linear sweep: data bytes show up as .byte lines or as nonsense instructions; give start/end to skip them. */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tvm.h"
 
 static const char *name[256];
@@ -19,6 +20,13 @@ int main(int argc, char **argv)
     if (!(f = fopen(argv[1], "rb"))) { perror(argv[1]); return 1; }
     n = fread(m, 1, 65536, f);
     fclose(f);
+    if (n && m[0] == TVM_MAGIC) {                   /* skip the header, show the entry point */
+        u32 ent = 0; int s = 0, b; size_t off = 1;
+        while (off < n) { b = m[off++]; ent |= (u32)(b & 127) << s; s += 7; if (!(b & 128) || s >= 21) break; }
+        printf("; entry 0x%04x\n", (unsigned)ent);
+        memmove(m, m + off, n - off);
+        n -= off;
+    }
     pc = argc > 2 ? strtol(argv[2], 0, 0) : 0;
     end = argc > 3 ? strtol(argv[3], 0, 0) : (long)n;
     if (end > (long)n) end = (long)n;
