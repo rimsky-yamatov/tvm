@@ -1,4 +1,5 @@
 /* gui_sdl.c - SDL2 backend: multiple windows, 8-bit paletted framebuffers. */
+#define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
