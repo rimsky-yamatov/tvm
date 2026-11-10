@@ -1,0 +1,37 @@
+// mandelbrot.tc - 16.16 fixed point with fmul(). Esc / close quits.
+#define W 160
+#define H 120
+#define MAXIT 32
+
+void main() {
+    int px; int py; int x0; int y0; int x; int y; int xx; int yy; int xt; int i;
+    int t; int quit = 0;
+    win(W, H);
+    wtitle("mandelbrot");
+    for (py = 0; py < H; py++) {
+        y0 = -78643 + py * 1311;
+        for (px = 0; px < W; px++) {
+            x0 = -163840 + px * 1433;
+            x = 0; y = 0; i = 0;
+            while (i < MAXIT) {
+                xx = fmul(x, x); yy = fmul(y, y);
+                if (xx + yy > 262144) break;
+                xt = xx - yy + x0;
+                y = 2 * fmul(x, y) + y0;
+                x = xt;
+                i++;
+            }
+            pixel(px, py, i == MAXIT ? 0 : 16 + i * 6);
+        }
+    }
+    flip();
+    while (!quit) {
+        t = poll();
+        while (t) {
+            if (t == 1 || t == 6) quit = 1;
+            if (t == 2 && ev_a == 27) quit = 1;
+            t = poll();
+        }
+        sleep(10);
+    }
+}
