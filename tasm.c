@@ -1,4 +1,4 @@
-/* tasm.c - assembler for tvm.  usage: tasm in.asm out.bin
+/* tasm.c - assembler for tvm.  usage: tasm in.tas [out.tvm]
  *
  * syntax:  label:  MNEMONIC operand   ; comment
  *   PUSH x            picks PUSH0 / PUSH1 / PUSHI8 / PUSHV automatically
@@ -275,7 +275,7 @@ static void line(char *s)
 int main(int argc, char **argv)
 {
     FILE *f; char *buf, tmp[512], *b, *e; long n; size_t l; int i, k;
-    if (argc < 3) { fprintf(stderr, "usage: tasm in.asm out.bin\n"); return 2; }
+    if (argc < 3) { fprintf(stderr, "usage: tasm in.tas [out.tvm]\n"); return 2; }
     fname = argv[1];
     if (!(f = fopen(fname, "rb"))) { perror(fname); return 1; }
     fseek(f, 0, SEEK_END); n = ftell(f); fseek(f, 0, SEEK_SET);

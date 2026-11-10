@@ -2,9 +2,9 @@
 
 ```
 make                      # 要 SDL2 と libm。tvm / tasm / tdis ができる
-./tasm examples/hello.asm hello.bin && ./tvm hello.bin
-./tasm examples/win2.asm  win2.bin  && ./tvm win2.bin     # TVM_SCALE=3 でズーム変更
-./tdis hello.bin                                          # 逆アセンブル
+./tasm examples/hello.tas hello.tvm && ./tvm hello.tvm
+./tasm examples/win2.tas  win2.tvm  && ./tvm win2.tvm     # TVM_SCALE=3 でズーム変更
+./tdis hello.tvm                                          # 逆アセンブル
 make test                                                 # 全サンプルとテスト
 ```
 

@@ -1,6 +1,6 @@
 tvm
 tasm
 tdis
-*.bin
+*.tvm
 *.o
 *.ppm
