@@ -1,0 +1,51 @@
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64,   os: ubuntu-latest,  cc: gcc,   exe: "" }
+          - { name: macos-arm64,    os: macos-latest,   cc: clang, exe: "" }
+          - { name: windows-x86_64, os: windows-latest, cc: gcc,   exe: ".exe" }
+    env:
+      CC: ${{ matrix.cc }}
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL2 (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+
+      - name: Install SDL2 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl2 coreutils
+
+      - name: Install toolchain and SDL2 (Windows / MSYS2)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-SDL2
+
+      - name: Build
+        run: make
+
+      - name: Test
+        run: make test
