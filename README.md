@@ -8,6 +8,18 @@ make                      # 要 SDL2 と libm。tvm / tasm / tdis ができる
 make test                                                 # 全サンプルとテスト
 ```
 
+## ビルド済みバイナリとCI
+GitHub Actions(`.github/workflows/build.yml`)が Linux / macOS / Windows でビルドとテストを行い、成果物(`tvm` `tasm` `tdis` + examples)をアーティファクトとして保存します。
+`v1.0.0` のような `v*` タグをpushすると、各OS向けのアーカイブがReleasesに自動で公開されます。
+
+```
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+- Linux / macOS: `tar xzf tvm-linux-x86_64.tar.gz` のあと、SDL2が必要(`apt install libsdl2-2.0-0` / `brew install sdl2`)
+- Windows: zipを展開するだけ(`SDL2.dll` 同梱)
+- 自分でビルドする場合: Linux/macOS は `make`、Windows は MSYS2 の MINGW64 シェルで `pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2` のあと `make`
+
 ## 構成
 | ファイル | 役割 |
 |---|---|
