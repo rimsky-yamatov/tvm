@@ -1,0 +1,22 @@
+// paint.tc - hold the left button to draw. Keys 1-9 pick a colour, c clears, Esc quits.
+void main() {
+    int color = 15; int t; int k; int quit = 0;
+    win(320, 240);
+    wtitle("paint");
+    text(4, 4, "drag: draw   1-9: colour   c: clear   Esc: quit", 8);
+    flip();
+    while (!quit) {
+        t = poll();
+        while (t) {
+            if (t == 1 || t == 6) quit = 1;
+            t = poll();
+        }
+        if (key(27)) quit = 1;
+        if (key(99)) clear(0);
+        for (k = 1; k <= 9; k++) if (key(48 + k)) color = k;
+        mouse();
+        if (mouse_btn & 1) rect(mouse_x - 1, mouse_y - 1, 3, 3, color);
+        flip();
+        sleep(8);
+    }
+}
