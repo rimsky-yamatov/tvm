@@ -1,0 +1,15 @@
+// primes.tc - sieve of Eratosthenes with a global char array
+#define MAX 100
+char sieve[MAX];
+
+void main() {
+    int i; int j;
+    memset(sieve, 1, MAX);
+    for (i = 2; i < MAX; i++) {
+        if (sieve[i]) {
+            puti(i); putc(32);
+            for (j = i * 2; j < MAX; j += i) sieve[j] = 0;
+        }
+    }
+    putc(10);
+}
