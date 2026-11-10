@@ -55,7 +55,7 @@ jobs:
         run: |
           d=tvm-${{ matrix.name }}
           mkdir "$d"
-          cp tvm${{ matrix.exe }} tasm${{ matrix.exe }} tdis${{ matrix.exe }} README.md "$d"/
+          cp tvm${{ matrix.exe }} tasm${{ matrix.exe }} tdis${{ matrix.exe }} tvc${{ matrix.exe }} README.md LANGUAGE.md "$d"/
           cp -r examples "$d"/examples
           if [ "$RUNNER_OS" = Windows ]; then
             cp "$(dirname "$(command -v sdl2-config)")/SDL2.dll" "$d"/
